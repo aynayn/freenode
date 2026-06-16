@@ -1,0 +1,88 @@
+name: Fetch and Filter Clean Proxy Nodes
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # ၆ နာရီတစ်ကြိမ် Auto Run မည်
+  workflow_dispatch: # Manual နှိပ်ပြီး Run ချင်လျှင်လည်း ရသည်
+
+permissions:
+  contents: write # ရလဒ်များကို Repo ထဲသို့ ပြန်သိမ်းရန် အခွင့်အရေးပေးခြင်း
+
+jobs:
+  collect-nodes:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
+    - name: Fetch and Filter Nodes
+      run: |
+        python -c "
+        import requests
+        import base64
+        import re
+
+        # ရယူမည့် အခမဲ့ Node Link ရင်းမြစ်များ (ဥပမာအဖြစ် ထည့်သွင်းထားခြင်းဖြစ်ပြီး မိမိစိတ်ကြိုက် ထပ်တိုးနိုင်သည်)
+        sources = [
+            'https://github.com/Epodonios/v2ray-configs',
+            'https://github.com/ebrasha/free-v2ray-public-list',
+            'https://github.com/barry-far/v2ray-config'
+            'https://github.com/MatinGhanbari/v2ray-configs'
+            'https://github.com/SoliSpirit/v2ray-configs'
+        ]
+
+        valid_nodes = []
+
+        for url in sources:
+            try:
+                res = requests.get(url, timeout=10)
+                if res.status_code == 200:
+                    content = res.text
+                    # Base64 ဖြစ်နေလျှင် Decode လုပ်မည်
+                    try:
+                        content = base64.b64decode(content).decode('utf-8')
+                    except Exception:
+                        pass
+                    
+                    lines = content.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        # VLESS Reality, Trojan, Hysteria2 သန့်သန့်များကိုသာ စစ်ထုတ်ယူမည်
+                        if line.startswith('vless://') and 'reality' in line.lower():
+                            if line not in valid_nodes: valid_nodes.append(line)
+                        elif line.startswith('trojan://'):
+                            if line not in valid_nodes: valid_nodes.append(line)
+                        elif line.startswith('hy2://') or line.startswith('hysteria2://'):
+                            if line not in valid_nodes: valid_nodes.append(line)
+            except Exception as e:
+                print(f'Error fetching from {url}: {e}')
+
+        # တွေ့ရှိသမျှ Node များကို စာသားဖိုင်အဖြစ် သိမ်းဆည်းမည်
+        with open('sub.txt', 'w', encoding='utf-8') as f:
+            f.write('\n'.join(valid_nodes))
+        
+        # Base64 Version Subscription အတွက်ပါ သိမ်းဆည်းမည်
+        b64_content = base64.b64encode('\n'.join(valid_nodes).encode('utf-8')).decode('utf-8')
+        with open('sub_b64.txt', 'w', encoding='utf-8') as f:
+            f.write(b64_content)
+
+        print(f'Successfully collected {len(valid_nodes)} clean nodes.')
+        "
+
+    - name: Commit and Push Changes
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add sub.txt sub_b64.txt
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update clean proxy nodes [skip ci]" && git push)

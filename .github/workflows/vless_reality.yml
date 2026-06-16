@@ -1,4 +1,4 @@
-name: Fetch and Split Clean Proxy Nodes
+name: Fetch and Filter Clean Proxy Nodes
 
 on:
   schedule:
@@ -26,37 +26,41 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Fetch and Split Nodes
+    - name: Fetch and Filter Nodes
       run: |
         python -c "
         import requests
         import base64
+        import re
         import os
         import glob
 
         # လင့်ခ်များ စနစ်အတွင်း ဖြတ်တောက်မခံရစေရန် စာသားပေါင်းစပ်နည်းဖြင့် သေချာရေးထားပါသည်
-        domain = 'https://' + 'raw.' + 'githubusercontent' + '.com/'
+        base_dom = 'https://' + 'raw.' + 'githubusercontent' + '.com/'
 
-          'https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt',
-          'https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/trojan.txt',
-          'https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt',
-          'https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/trojan_configs.txt',
-          'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt',
-          'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt',
-          'https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt',
-          'https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/trojan.txt',
-          'https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/hysteria2.txt',
-          'https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/refs/heads/main/Protocols/vless.txt',
-          'https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/refs/heads/main/Protocols/trojan.txt',
+        sources = [
+            base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt',
+            base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/trojan.txt',
+            base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt',
+            base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/trojan_configs.txt',
+            base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt',
+            base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt',
+            base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt',
+            base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/trojan.txt',
+            base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/hysteria2.txt',
+            base_dom + 'SoliSpirit/v2ray-configs/refs/heads/main/Protocols/vless.txt',
+            base_dom + 'SoliSpirit/v2ray-configs/refs/heads/main/Protocols/trojan.txt'
+        ]
 
-        sources = [link1, link2, link3, link4, link5]
         valid_nodes = []
 
         for url in sources:
             try:
-                res = requests.get(url, timeout=20)
+                res = requests.get(url, timeout=15)
                 if res.status_code == 200:
                     content = res.text
+                    
+                    # Base64 Format ဖြစ်နေပါက Decode အရင်လုပ်မည်
                     try:
                         cleaned_content = content.replace('\r', '').replace('\n', '').strip()
                         content = base64.b64decode(cleaned_content).decode('utf-8')
@@ -66,6 +70,7 @@ jobs:
                     lines = content.split('\n')
                     for line in lines:
                         line = line.strip()
+                        # VLESS Reality, Trojan, Hysteria2 အစစ်အမှန်များကို စစ်ထုတ်ယူမည်
                         if line.startswith('vless://') and 'reality' in line.lower():
                             if line not in valid_nodes: valid_nodes.append(line)
                         elif line.startswith('trojan://'):
@@ -75,13 +80,15 @@ jobs:
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # ယခင်ရှိခဲ့သော ဖိုင်ဟောင်းများကို အကုန်ရှင်းလင်းပါမည်
+        # ယခင်ရှိခဲ့ဖူးသော ဖိုင်ဟောင်းများကို အရင်ရှင်းလင်းပါမည်
         for f in glob.glob('sub_part*.txt'):
             try: os.remove(f)
             except: pass
 
-        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်ပါမည်
+        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ကန့်သတ်ပြီး ဖိုင်ခွဲထုတ်သိမ်းဆည်းမည့်အပိုင်း ဖြစ်ပါသည်
         chunk_size = 1000
+        part_num = 0
+        
         for i in range(0, len(valid_nodes), chunk_size):
             part_nodes = valid_nodes[i:i + chunk_size]
             part_num = (i // chunk_size) + 1
@@ -89,7 +96,7 @@ jobs:
             combined_text = '\n'.join(part_nodes)
             b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
             
-            # ဖိုင်အမည်များကို sub_part1.txt, sub_part2.txt ဟု ခွဲသိမ်းပါမည်
+            # ဖိုင်များကို sub_part1.txt, sub_part2.txt ဟု အလိုအလျောက် ခွဲထုတ်ပေးသွားမည်
             with open(f'sub_part{part_num}.txt', 'w', encoding='utf-8') as f:
                 f.write(b64_content)
 

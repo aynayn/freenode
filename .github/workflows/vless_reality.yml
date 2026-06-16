@@ -2,7 +2,7 @@ name: Fetch and Filter Clean Proxy Nodes
 
 on:
   schedule:
-    - cron: '0 */1 * * *' # ၆ နာရီတစ်ကြိမ် Auto Run မည်
+    - cron: '0 */1 * * *' # ၁ နာရီတစ်ကြိမ် Auto Run မည်
   workflow_dispatch: # Manual နှိပ်ပြီး Run ချင်လျှင်လည်း ရသည်
 
 permissions:

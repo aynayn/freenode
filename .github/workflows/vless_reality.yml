@@ -16,7 +16,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Git ရာဇဝင်အပြည့်အစုံကို ဆွဲယူရန်
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -72,49 +72,47 @@ jobs:
                 res = requests.get(url, headers=headers, timeout=15)
                 if res.status_code == 200:
                     content = res.text
-                    
-                    # ဉာဏ်ရည်ရှိရှိ Base64 စစ်ဆေးနည်း
-                    # ဖိုင်တစ်ခုလုံးသည် နေရာလွတ်မပါဘဲ Base64 ဖြစ်နေမှသာ Decode လုပ်မည်
                     cleaned_content = content.replace('\r', '').replace('\n', '').strip()
                     if cleaned_content and not any(s in cleaned_content for s in ['vless://', 'trojan://', 'hy2://']):
                         try:
                             content = base64.b64decode(cleaned_content).decode('utf-8')
                         except:
                             pass
-                    
                     extract_nodes(content)
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # ယခင်ရှိခဲ့ဖူးသော sub_part ဖိုင်ဟောင်းများကို အရင်ဖျက်ပါမည်
+        # sub_part ဖိုင်ဟောင်းများကို အကုန်ရှင်းလင်းခြင်း
         for f in glob.glob('sub_part*.txt'):
             try: os.remove(f)
             except: pass
 
-        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်သိမ်းဆည်းခြင်း
+        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်သိမ်းဆည်းခြင်း (000, 001, 002 အစဉ်အတိုင်း)
         chunk_size = 1000
-        part_num = 00
+        total_parts = 0
         
         if valid_nodes:
             for i in range(0, len(valid_nodes), chunk_size):
                 part_nodes = valid_nodes[i:i + chunk_size]
-                part_num = (i // chunk_size) + 1
+                
+                # i // chunk_size သည် 0 မှ စတင်ပါမည်။ :03d က သုည ၃ လုံး (000, 001) ပုံစံပြောင်းပေးသည်။
+                part_str = f'{(i // chunk_size):03d}'
                 
                 combined_text = '\n'.join(part_nodes)
                 b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
                 
-                with open(f'sub_part{part_num}.txt', 'w', encoding='utf-8') as f:
+                with open(f'sub_part{part_str}.txt', 'w', encoding='utf-8') as f:
                     f.write(b64_content)
+                total_parts += 1
 
-        print(f'Successfully split {len(valid_nodes)} nodes into {part_num} parts.')
+        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts (from 000 to {total_parts-1:03d}).')
         "
 
     - name: Commit and Push Changes
       run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.email "github-actions[bot]@://github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ဖိုင်အသစ်ရော၊ ဖျက်လိုက်သောဖိုင်ဟောင်းများကိုပါ Git ထဲတွင် တစ်ခါတည်း Update ဖြစ်စေရန် git add -A သုံးပါသည်
         git add sub_part*.txt 2>/dev/null || true
         git add -A sub_part*.txt 2>/dev/null || true
         

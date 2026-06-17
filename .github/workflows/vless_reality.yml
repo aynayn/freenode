@@ -15,6 +15,8 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Git ရာဇဝင်အပြည့်အစုံကို ဆွဲယူရန်
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -35,8 +37,8 @@ jobs:
         import os
         import glob
 
-        # လင့်ခ်များ စနစ်အတွင်း ဖြတ်တောက်မခံရစေရန် စာသားပေါင်းစပ်နည်းဖြင့် သေချာရေးထားပါသည်
         base_dom = 'https://' + 'raw.' + 'githubusercontent' + '.com/'
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
         sources = [
             base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt',
@@ -54,58 +56,66 @@ jobs:
 
         valid_nodes = []
 
+        def extract_nodes(text):
+            lines = text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line.startswith('vless://') and 'reality' in line.lower():
+                    if line not in valid_nodes: valid_nodes.append(line)
+                elif line.startswith('trojan://'):
+                    if line not in valid_nodes: valid_nodes.append(line)
+                elif line.startswith('hy2://') or line.startswith('hysteria2://'):
+                    if line not in valid_nodes: valid_nodes.append(line)
+
         for url in sources:
             try:
-                res = requests.get(url, timeout=15)
+                res = requests.get(url, headers=headers, timeout=15)
                 if res.status_code == 200:
                     content = res.text
                     
-                    # Base64 Format ဖြစ်နေပါက Decode အရင်လုပ်မည်
-                    try:
-                        cleaned_content = content.replace('\r', '').replace('\n', '').strip()
-                        content = base64.b64decode(cleaned_content).decode('utf-8')
-                    except Exception:
-                        pass
+                    # ဉာဏ်ရည်ရှိရှိ Base64 စစ်ဆေးနည်း
+                    # ဖိုင်တစ်ခုလုံးသည် နေရာလွတ်မပါဘဲ Base64 ဖြစ်နေမှသာ Decode လုပ်မည်
+                    cleaned_content = content.replace('\r', '').replace('\n', '').strip()
+                    if cleaned_content and not any(s in cleaned_content for s in ['vless://', 'trojan://', 'hy2://']):
+                        try:
+                            content = base64.b64decode(cleaned_content).decode('utf-8')
+                        except:
+                            pass
                     
-                    lines = content.split('\n')
-                    for line in lines:
-                        line = line.strip()
-                        # VLESS Reality, Trojan, Hysteria2 အစစ်အမှန်များကို စစ်ထုတ်ယူမည်
-                        if line.startswith('vless://') and 'reality' in line.lower():
-                            if line not in valid_nodes: valid_nodes.append(line)
-                        elif line.startswith('trojan://'):
-                            if line not in valid_nodes: valid_nodes.append(line)
-                        elif line.startswith('hy2://') or line.startswith('hysteria2://'):
-                            if line not in valid_nodes: valid_nodes.append(line)
+                    extract_nodes(content)
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # ယခင်ရှိခဲ့ဖူးသော ဖိုင်ဟောင်းများကို အရင်ရှင်းလင်းပါမည်
+        # ယခင်ရှိခဲ့ဖူးသော sub_part ဖိုင်ဟောင်းများကို အရင်ဖျက်ပါမည်
         for f in glob.glob('sub_part*.txt'):
             try: os.remove(f)
             except: pass
 
-        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ကန့်သတ်ပြီး ဖိုင်ခွဲထုတ်သိမ်းဆည်းမည့်အပိုင်း ဖြစ်ပါသည်
+        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်သိမ်းဆည်းခြင်း
         chunk_size = 1000
         part_num = 0
         
-        for i in range(0, len(valid_nodes), chunk_size):
-            part_nodes = valid_nodes[i:i + chunk_size]
-            part_num = (i // chunk_size) + 1
-            
-            combined_text = '\n'.join(part_nodes)
-            b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
-            
-            # ဖိုင်များကို sub_part1.txt, sub_part2.txt ဟု အလိုအလျောက် ခွဲထုတ်ပေးသွားမည်
-            with open(f'sub_part{part_num}.txt', 'w', encoding='utf-8') as f:
-                f.write(b64_content)
+        if valid_nodes:
+            for i in range(0, len(valid_nodes), chunk_size):
+                part_nodes = valid_nodes[i:i + chunk_size]
+                part_num = (i // chunk_size) + 1
+                
+                combined_text = '\n'.join(part_nodes)
+                b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
+                
+                with open(f'sub_part{part_num}.txt', 'w', encoding='utf-8') as f:
+                    f.write(b64_content)
 
         print(f'Successfully split {len(valid_nodes)} nodes into {part_num} parts.')
         "
 
     - name: Commit and Push Changes
       run: |
-        git config --local user.email "github-actions[bot]@://github.com"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add sub_part*.txt
+        
+        # ဖိုင်အသစ်ရော၊ ဖျက်လိုက်သောဖိုင်ဟောင်းများကိုပါ Git ထဲတွင် တစ်ခါတည်း Update ဖြစ်စေရန် git add -A သုံးပါသည်
+        git add sub_part*.txt 2>/dev/null || true
+        git add -A sub_part*.txt 2>/dev/null || true
+        
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update and split clean proxy nodes [skip ci]" && git push)

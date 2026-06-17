@@ -108,8 +108,16 @@ jobs:
         print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
         "
 
-        - name: Commit and Push Changes
-        run: |
+    - name: Fetch and Filter Nodes
+      run: |
+        python -c "
+        import requests
+        ...
+        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
+        "
+
+    - name: Commit and Push Changes
+      run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
@@ -135,4 +143,3 @@ jobs:
         else
           echo "No changes to commit."
         fi
-

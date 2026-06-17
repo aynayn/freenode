@@ -57,11 +57,6 @@ jobs:
         valid_nodes = []
 
         def extract_nodes(text):
-            # စာသားထဲမှ proxy node တစ်ခုချင်းစီကို တိတိကျကျ စစ်ထုတ်ရန် Regex စနစ်သုံးထားပါသည်
-            pattern = r'(vless:\/\/|trojan:\/\/|hy2:\/\/|hysteria2:\/\/)[^\s]+'
-            matches = re.findall(pattern, text)
-            
-            # ဒေါင်လိုက်စာသားများကို တစ်လိုင်းချင်း ခွဲထုတ်ခြင်း
             lines = text.split('\n')
             for line in lines:
                 line = line.strip()
@@ -77,11 +72,8 @@ jobs:
                 res = requests.get(url, headers=headers, timeout=15)
                 if res.status_code == 200:
                     content = res.text.strip()
-                    
-                    # ဖိုင်တစ်ခုလုံးသည် base64 ဟုတ်မဟုတ် သေချာစွာ စစ်ဆေးခြင်း
                     if content and not any(s in content for s in ['vless://', 'trojan://', 'hy2://']):
                         try:
-                            # ဖြတ်တောက်နေသော နေရာလွတ်များနှင့် Padding များကို ပြုပြင်ခြင်း
                             cleaned_content = content.replace('\r', '').replace('\n', '').replace(' ', '')
                             cleaned_content += '=' * (-len(cleaned_content) % 4)
                             decoded = base64.b64decode(cleaned_content).decode('utf-8', errors='ignore')
@@ -89,17 +81,14 @@ jobs:
                                 content = decoded
                         except:
                             pass
-                    
                     extract_nodes(content)
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # ယခင်ကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံးကို သုတ်သင်ရှင်းလင်းခြင်း
         for f in glob.glob('sub_part*'):
             try: os.remove(f)
             except: pass
 
-        # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်သိမ်းဆည်းခြင်း (000, 001, 002 အစဉ်အတိုင်း)
         chunk_size = 1000
         total_parts = 0
         
@@ -123,13 +112,16 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ဖိုင်ဟောင်း/ဖိုင်သစ် အပြောင်းအလဲအားလုံးကို တစ်ခါတည်း သိမ်းဆည်းခြင်း
+        # ၁။ ပထမဦးဆုံး GitHub ပေါ်က နောက်ဆုံးအခြေအနေကို အရင် Pull ဆွဲယူပြီး ညှိလိုက်ပါသည် (Conflict လုံးဝ မဖြစ်စေရန်)
+        git pull origin main
+        
+        # ၂။ ထို့နောက်မှ ဖိုင်ဟောင်း/ဖိုင်သစ် အားလုံးကို Git ထဲ ထည့်ပါသည်
         git add -A sub_part* 2>/dev/null || true
         
+        # ၃။ ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး တိုက်ရိုက် Push လုပ်ပါသည် (Rebase Error မတက်တော့ပါ)
         if ! git diff --quiet --staged; then
           git commit -m "Update and split clean proxy nodes [skip ci]"
-          git pull --rebase origin main
-          git push
+          git push origin main
         else
           echo "No changes to commit."
         fi

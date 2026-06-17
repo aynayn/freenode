@@ -93,7 +93,7 @@ jobs:
 
         # Node အရေအတွက်ကို ၁,၀၀၀ စီ ခွဲထုတ်သိမ်းဆည်းခြင်း
         chunk_size = 1000
-        part_num = 0
+        part_num = 00
         
         if valid_nodes:
             for i in range(0, len(valid_nodes), chunk_size):

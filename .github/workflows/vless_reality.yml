@@ -108,24 +108,31 @@ jobs:
         print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
         "
 
-    - name: Commit and Push Changes
+        - name: Commit and Push Changes
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ၁။ ဘာမှမလုပ်ခင် Repo ရဲ့ နောက်ဆုံးအခြေအနေကို ကြိုတင် Pull ယူထားပါသည်
+        # ၁။ လက်ရှိ လုပ်ထားတဲ့ အပြောင်းအလဲတွေကို ခေတ္တ သိမ်းဆည်း (Stash) ထားပါသည်
+        git stash --include-untracked
+        
+        # ၂။ GitHub ပေါ်က နောက်ဆုံး ကုဒ်ကို လုံခြုံစွာ Pull ဆွဲယူပါသည်
         git pull origin main --rebase
         
-        # ၂။ Git ထဲက ဖိုင်ဟောင်းစာရင်းတွေကို အရင်ပယ်ဖျက်ပါသည် (ဖိုင်ဟောင်းအပိုများ ကျန်မနေစေရန်)
+        # ၃။ ခေတ္တသိမ်းထားခဲ့သော အပြောင်းအလဲများကို ပြန်ထုတ်ယူပါသည်
+        git stash pop 2>/dev/null || true
+        
+        # ၄။ Git ထဲက ဖိုင်ဟောင်းစာရင်းများကို အရင်ရှင်းထုတ်ပါသည်
         git rm sub_part* 2>/dev/null || true
         
-        # ၃။ အသစ်ထွက်လာသော ဖိုင်များကို ပြန်ထည့်ပါသည်
+        # ၅။ အသစ်ထွက်လာသော ဖိုင်များကို ပြန်ထည့်ပါသည်
         git add sub_part* 2>/dev/null || true
         
-        # ၄။ ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး Push လုပ်ပါသည်
+        # ၆။ အမှန်တကယ် ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး Push လုပ်ပါသည်
         if ! git diff --quiet --staged; then
           git commit -m "Update and split clean proxy nodes [skip ci]"
           git push origin main
         else
           echo "No changes to commit."
         fi
+

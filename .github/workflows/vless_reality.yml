@@ -116,6 +116,22 @@ jobs:
         print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
         "
 
+    - name: Fetch and Filter Nodes
+      run: |
+        python -c "
+        import requests
+        ...
+        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
+        "
+
+    - name: Fetch and Filter Nodes
+      run: |
+        python -c "
+        import requests
+        ...
+        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
+        "
+
     - name: Commit and Push Changes
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"

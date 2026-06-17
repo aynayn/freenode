@@ -82,8 +82,8 @@ jobs:
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # sub_part ဖိုင်ဟောင်းများကို အကုန်ရှင်းလင်းခြင်း
-        for f in glob.glob('sub_part*.txt'):
+        # အရင်ကကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံး (ဂဏန်း ၂ လုံး၊ ၁ လုံး မကျန်) အကုန်သုတ်သင်ရှင်းလင်းခြင်း
+        for f in glob.glob('sub_part*'):
             try: os.remove(f)
             except: pass
 
@@ -94,8 +94,6 @@ jobs:
         if valid_nodes:
             for i in range(0, len(valid_nodes), chunk_size):
                 part_nodes = valid_nodes[i:i + chunk_size]
-                
-                # i // chunk_size သည် 0 မှ စတင်ပါမည်။ :03d က သုည ၃ လုံး (000, 001) ပုံစံပြောင်းပေးသည်။
                 part_str = f'{(i // chunk_size):03d}'
                 
                 combined_text = '\n'.join(part_nodes)
@@ -105,7 +103,7 @@ jobs:
                     f.write(b64_content)
                 total_parts += 1
 
-        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts (from 000 to {total_parts-1:03d}).')
+        print(f'Successfully split {len(valid_nodes)} nodes into {total_parts} parts.')
         "
 
     - name: Commit and Push Changes
@@ -113,7 +111,7 @@ jobs:
         git config --local user.email "github-actions[bot]@://github.com"
         git config --local user.name "github-actions[bot]"
         
-        git add sub_part*.txt 2>/dev/null || true
-        git add -A sub_part*.txt 2>/dev/null || true
+        # ဤနေရာတွင် sub_part* ဖြင့် စသမျှ ဖိုင်ဟောင်း/ဖိုင်သစ် အားလုံးကို Git ထံ အသိပေးလိုက်ပါသည်
+        git add -A sub_part* 2>/dev/null || true
         
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update and split clean proxy nodes [skip ci]" && git push)

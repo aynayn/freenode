@@ -85,6 +85,7 @@ jobs:
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
+        # Local ပေါ်က ဖိုင်ဟောင်းတွေကို အရင်ရှင်းထုတ်ခြင်း
         for f in glob.glob('sub_part*'):
             try: os.remove(f)
             except: pass
@@ -112,13 +113,16 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ၁။ ပထမဦးဆုံး GitHub ပေါ်က နောက်ဆုံးအခြေအနေကို အရင် Pull ဆွဲယူပြီး ညှိလိုက်ပါသည် (Conflict လုံးဝ မဖြစ်စေရန်)
-        git pull origin main
+        # ၁။ ဘာမှမလုပ်ခင် Repo ရဲ့ နောက်ဆုံးအခြေအနေကို ကြိုတင် Pull ယူထားပါသည်
+        git pull origin main --rebase
         
-        # ၂။ ထို့နောက်မှ ဖိုင်ဟောင်း/ဖိုင်သစ် အားလုံးကို Git ထဲ ထည့်ပါသည်
-        git add -A sub_part* 2>/dev/null || true
+        # ၂။ Git ထဲက ဖိုင်ဟောင်းစာရင်းတွေကို အရင်ပယ်ဖျက်ပါသည် (ဖိုင်ဟောင်းအပိုများ ကျန်မနေစေရန်)
+        git rm sub_part* 2>/dev/null || true
         
-        # ၃။ ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး တိုက်ရိုက် Push လုပ်ပါသည် (Rebase Error မတက်တော့ပါ)
+        # ၃။ အသစ်ထွက်လာသော ဖိုင်များကို ပြန်ထည့်ပါသည်
+        git add sub_part* 2>/dev/null || true
+        
+        # ၄။ ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး Push လုပ်ပါသည်
         if ! git diff --quiet --staged; then
           git commit -m "Update and split clean proxy nodes [skip ci]"
           git push origin main

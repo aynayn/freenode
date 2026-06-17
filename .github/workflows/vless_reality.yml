@@ -82,7 +82,7 @@ jobs:
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # အရင်ကကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံး (ဂဏန်း ၂ လုံး၊ ၁ လုံး မကျန်) အကုန်သုတ်သင်ရှင်းလင်းခြင်း
+        # အရင်ကကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံးကို အကုန်သုတ်သင်ရှင်းလင်းခြင်း
         for f in glob.glob('sub_part*'):
             try: os.remove(f)
             except: pass
@@ -108,10 +108,20 @@ jobs:
 
     - name: Commit and Push Changes
       run: |
-        git config --local user.email "github-actions[bot]@://github.com"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ဤနေရာတွင် sub_part* ဖြင့် စသမျှ ဖိုင်ဟောင်း/ဖိုင်သစ် အားလုံးကို Git ထံ အသိပေးလိုက်ပါသည်
+        # ဖိုင်ဟောင်း/ဖိုင်သစ် အပြောင်းအလဲအားလုံးကို သိမ်းဆည်းခြင်း
         git add -A sub_part* 2>/dev/null || true
         
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Update and split clean proxy nodes [skip ci]" && git push)
+        # ပြောင်းလဲမှုရှိမှသာ အလုပ်လုပ်မည်
+        if ! git diff --quiet --staged; then
+          git commit -m "Update and split clean proxy nodes [skip ci]"
+          
+          # Conflict မဖြစ်စေရန် အဝေးမှ နောက်ဆုံးဒေတာကို ဆွဲယူပေါင်းစပ်ခြင်း (အရေးကြီးဆုံးအချက်)
+          git pull --rebase origin main
+          
+          git push
+        else
+          echo "No changes to commit."
+        fi

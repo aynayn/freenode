@@ -57,6 +57,11 @@ jobs:
         valid_nodes = []
 
         def extract_nodes(text):
+            # စာသားထဲမှ proxy node တစ်ခုချင်းစီကို တိတိကျကျ စစ်ထုတ်ရန် Regex စနစ်သုံးထားပါသည်
+            pattern = r'(vless:\/\/|trojan:\/\/|hy2:\/\/|hysteria2:\/\/)[^\s]+'
+            matches = re.findall(pattern, text)
+            
+            # ဒေါင်လိုက်စာသားများကို တစ်လိုင်းချင်း ခွဲထုတ်ခြင်း
             lines = text.split('\n')
             for line in lines:
                 line = line.strip()
@@ -71,18 +76,25 @@ jobs:
             try:
                 res = requests.get(url, headers=headers, timeout=15)
                 if res.status_code == 200:
-                    content = res.text
-                    cleaned_content = content.replace('\r', '').replace('\n', '').strip()
-                    if cleaned_content and not any(s in cleaned_content for s in ['vless://', 'trojan://', 'hy2://']):
+                    content = res.text.strip()
+                    
+                    # ဖိုင်တစ်ခုလုံးသည် base64 ဟုတ်မဟုတ် သေချာစွာ စစ်ဆေးခြင်း
+                    if content and not any(s in content for s in ['vless://', 'trojan://', 'hy2://']):
                         try:
-                            content = base64.b64decode(cleaned_content).decode('utf-8')
+                            # ဖြတ်တောက်နေသော နေရာလွတ်များနှင့် Padding များကို ပြုပြင်ခြင်း
+                            cleaned_content = content.replace('\r', '').replace('\n', '').replace(' ', '')
+                            cleaned_content += '=' * (-len(cleaned_content) % 4)
+                            decoded = base64.b64decode(cleaned_content).decode('utf-8', errors='ignore')
+                            if any(s in decoded for s in ['vless://', 'trojan://', 'hy2://']):
+                                content = decoded
                         except:
                             pass
+                    
                     extract_nodes(content)
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        # အရင်ကကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံးကို အကုန်သုတ်သင်ရှင်းလင်းခြင်း
+        # ယခင်ကျန်ခဲ့သမျှ sub_part ဖိုင်အဟောင်းအားလုံးကို သုတ်သင်ရှင်းလင်းခြင်း
         for f in glob.glob('sub_part*'):
             try: os.remove(f)
             except: pass
@@ -111,16 +123,12 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # ဖိုင်ဟောင်း/ဖိုင်သစ် အပြောင်းအလဲအားလုံးကို သိမ်းဆည်းခြင်း
+        # ဖိုင်ဟောင်း/ဖိုင်သစ် အပြောင်းအလဲအားလုံးကို တစ်ခါတည်း သိမ်းဆည်းခြင်း
         git add -A sub_part* 2>/dev/null || true
         
-        # ပြောင်းလဲမှုရှိမှသာ အလုပ်လုပ်မည်
         if ! git diff --quiet --staged; then
           git commit -m "Update and split clean proxy nodes [skip ci]"
-          
-          # Conflict မဖြစ်စေရန် အဝေးမှ နောက်ဆုံးဒေတာကို ဆွဲယူပေါင်းစပ်ခြင်း (အရေးကြီးဆုံးအချက်)
           git pull --rebase origin main
-          
           git push
         else
           echo "No changes to commit."

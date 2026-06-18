@@ -50,7 +50,7 @@ jobs:
 
         # မြန်မာစံတော်ချိန် (UTC + 6:30) ကို ရယူခြင်း
         mm_timezone = timezone(timedelta(hours=6, minutes=30))
-        current_time_str = datetime.now(mm_timezone).strftime("%d.%m.%Y %H:%M")
+        current_time_str = datetime.now(mm_timezone).strftime("%d.%m.%Y %I:%M %p")
 
         base_dom = 'https://' + 'raw.' + 'githubusercontent' + '.com/'
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}

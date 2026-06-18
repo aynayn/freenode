@@ -135,3 +135,14 @@ jobs:
         else
           echo "No changes to commit."
         fi
+
+        - name: Generate Metadata JSON
+          run: python generate_metadata.py
+
+        - name: Commit and Push Metadata
+          run: |
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add metadata.json
+            git commit -m "Auto-update metadata.json" || echo "No changes to commit"
+            git push origin main

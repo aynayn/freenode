@@ -50,7 +50,9 @@ jobs:
 
         # မြန်မာစံတော်ချိန် (UTC + 6:30) ကို ရယူခြင်း
         mm_timezone = timezone(timedelta(hours=6, minutes=30))
-        current_time_str = datetime.now(mm_timezone).strftime("%d.%m.%Y %I:%M %p")
+        dt = datetime.now(mm_timezone)
+        # AM/PM ပုံစံဖြင့် နာရီအရှေ့မှ သုညကိုဖယ်ထုတ်ပြီး ပြင်ဆင်ခြင်း (ဥပမာ - 18.6.2026 5:16 PM)
+        current_time_str = f"{dt.day}.{dt.month}.{dt.year} {dt.strftime('%I:%M %p').lstrip('0')}"
 
         base_dom = 'https://' + 'raw.' + 'githubusercontent' + '.com/'
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -58,10 +60,12 @@ jobs:
         sources = [
             base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt',
             base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/trojan.txt',
+            base_dom + 'Epodonios/v2ray-configs/main/Splitted-By-Protocol/ss.txt', # Shadowsocks
             base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt',
             base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/trojan_configs.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt',
+            base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/ss.txt', # Shadowsocks
             base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt',
             base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/trojan.txt',
             base_dom + 'MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/hysteria2.txt',
@@ -69,30 +73,38 @@ jobs:
             base_dom + 'SoliSpirit/v2ray-configs/refs/heads/main/Protocols/trojan.txt'
         ]
 
-        valid_nodes = []
+        # ပရိုတိုကောအလိုက် ခွဲခြားသိမ်းဆည်းမည့် Dictionary
+        protocols = {
+            'vless': [],
+            'trojan': [],
+            'ss': [],
+            'hy2': []
+        }
 
         def extract_nodes(text):
             lines = text.split('\n')
             for line in lines:
                 line = line.strip()
                 if line.startswith('vless://') and 'reality' in line.lower():
-                    if line not in valid_nodes: valid_nodes.append(line)
+                    if line not in protocols['vless']: protocols['vless'].append(line)
                 elif line.startswith('trojan://'):
-                    if line not in valid_nodes: valid_nodes.append(line)
+                    if line not in protocols['trojan']: protocols['trojan'].append(line)
+                elif line.startswith('ss://'):
+                    if line not in protocols['ss']: protocols['ss'].append(line)
                 elif line.startswith('hy2://') or line.startswith('hysteria2://'):
-                    if line not in valid_nodes: valid_nodes.append(line)
+                    if line not in protocols['hy2']: protocols['hy2'].append(line)
 
         for url in sources:
             try:
                 res = requests.get(url, headers=headers, timeout=15)
                 if res.status_code == 200:
                     content = res.text.strip()
-                    if content and not any(s in content for s in ['vless://', 'trojan://', 'hy2://']):
+                    if content and not any(s in content for s in ['vless://', 'trojan://', 'hy2://', 'ss://']):
                         try:
                             cleaned_content = content.replace('\r', '').replace('\n', '').replace(' ', '')
                             cleaned_content += '=' * (-len(cleaned_content) % 4)
                             decoded = base64.b64decode(cleaned_content).decode('utf-8', errors='ignore')
-                            if any(s in decoded for s in ['vless://', 'trojan://', 'hy2://']):
+                            if any(s in decoded for s in ['vless://', 'trojan://', 'hy2://', 'ss://']):
                                 content = decoded
                         except:
                             pass
@@ -100,62 +112,66 @@ jobs:
             except Exception as e:
                 print(f'Error fetching from {url}: {e}')
 
-        if valid_nodes:
-            chunk_size = 1000
-            new_files = {}
+        new_files = {}
+        chunk_size = 1000
+
+        # ပရိုတိုကော တစ်ခုချင်းစီအလိုက် ဖိုင်ခွဲထုတ်ခြင်း
+        for proto, nodes in protocols.items():
+            if nodes:
+                for i in range(0, len(nodes), chunk_size):
+                    part_nodes = nodes[i:i + chunk_size]
+                    part_str = f'{(i // chunk_size):03d}'
+                    filename = f'sub_{proto}_{part_str}.txt'
+                    
+                    combined_text = '\n'.join(part_nodes)
+                    b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
+                    new_files[filename] = b64_content
+
+        # Local ပေါ်က မလိုတော့တဲ့ ဖိုင်ဟောင်းအားလုံး (sub_part* ရော၊ ပရိုတိုကောအဟောင်းများပါ) ရှင်းထုတ်ခြင်း
+        existing_disk_files = (glob.glob('sub_part*') + 
+                               glob.glob('sub_vless_*') + 
+                               glob.glob('sub_trojan_*') + 
+                               glob.glob('sub_ss_*') + 
+                               glob.glob('sub_hy2_*'))
+                               
+        for f in existing_disk_files:
+            if f not in new_files:
+                try:
+                    os.remove(f)
+                    print(f"Removed obsolete file: {f}")
+                except Exception as e:
+                    print(f"Error removing {f}: {e}")
+                if f in metadata:
+                    del metadata[f]
+
+        # ဖိုင်များကို စစ်ဆေးပြီး အသစ်ရေးခြင်း သို့မဟုတ် နဂိုအတိုင်းထားခြင်း
+        new_metadata = {}
+        for filename, content in new_files.items():
+            is_changed = True
+            if os.path.exists(filename):
+                try:
+                    with open(filename, 'r', encoding='utf-8') as f:
+                        old_content = f.read().strip()
+                    if old_content == content.strip():
+                        is_changed = False
+                except Exception as e:
+                    print(f"Error reading existing file {filename}: {e}")
+
+            if is_changed:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                new_metadata[filename] = current_time_str
+                print(f"Updated {filename} with new nodes at {current_time_str}")
+            else:
+                # မပြောင်းလဲပါက မူရင်း Date/Time ကို ဆက်သုံးပါမည်
+                new_metadata[filename] = metadata.get(filename, current_time_str)
+                print(f"Kept existing {filename} (no changes). Timestamp: {new_metadata[filename]}")
+
+        # metadata.json အား အသစ်ပြန်လည်ရေးသားခြင်း
+        with open('metadata.json', 'w', encoding='utf-8') as f:
+            json.dump(new_metadata, f, ensure_ascii=False, indent=2)
             
-            # ဖိုင်အသစ်များကို Memory ထဲတွင် အရင်ခွဲထုတ်ထားခြင်း
-            for i in range(0, len(valid_nodes), chunk_size):
-                part_nodes = valid_nodes[i:i + chunk_size]
-                part_str = f'{(i // chunk_size):03d}'
-                filename = f'sub_part{part_str}.txt'
-                
-                combined_text = '\n'.join(part_nodes)
-                b64_content = base64.b64encode(combined_text.encode('utf-8')).decode('utf-8')
-                new_files[filename] = b64_content
-
-            # Local ပေါ်က မလိုတော့တဲ့ ဖိုင်ဟောင်းတွေကို ဖျက်ထုတ်ခြင်း
-            existing_disk_files = glob.glob('sub_part*')
-            for f in existing_disk_files:
-                if f not in new_files:
-                    try:
-                        os.remove(f)
-                        print(f"Removed obsolete file: {f}")
-                    except Exception as e:
-                        print(f"Error removing {f}: {e}")
-                    if f in metadata:
-                        del metadata[f]
-
-            # ဖိုင်များကို စစ်ဆေးပြီး အသစ်ရေးခြင်း သို့မဟုတ် နဂိုအတိုင်းထားခြင်း
-            new_metadata = {}
-            for filename, content in new_files.items():
-                is_changed = True
-                if os.path.exists(filename):
-                    try:
-                        with open(filename, 'r', encoding='utf-8') as f:
-                            old_content = f.read().strip()
-                        if old_content == content.strip():
-                            is_changed = False
-                    except Exception as e:
-                        print(f"Error reading existing file {filename}: {e}")
-
-                if is_changed:
-                    with open(filename, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    new_metadata[filename] = current_time_str
-                    print(f"Updated {filename} with new nodes at {current_time_str}")
-                else:
-                    # မပြောင်းလဲပါက မူရင်း Date/Time ကို ဆက်သုံးပါမည်
-                    new_metadata[filename] = metadata.get(filename, current_time_str)
-                    print(f"Kept existing {filename} (no changes). Timestamp: {new_metadata[filename]}")
-
-            # metadata.json အား အသစ်ပြန်လည်ရေးသားခြင်း
-            with open('metadata.json', 'w', encoding='utf-8') as f:
-                json.dump(new_metadata, f, ensure_ascii=False, indent=2)
-                
-            print(f'Successfully split {len(valid_nodes)} nodes. Metadata updated.')
-        else:
-            print("No valid nodes fetched. Keeping existing files to avoid empty data.")
+        print('Successfully updated proxy nodes and split by protocols.')
         EOF
         python fetch_and_meta.py
         rm fetch_and_meta.py
@@ -176,14 +192,21 @@ jobs:
         
         # ၄။ Git ထဲက ဖိုင်ဟောင်းစာရင်းများကို အရင်ရှင်းထုတ်ပါသည်
         git rm sub_part* 2>/dev/null || true
+        git rm sub_vless* 2>/dev/null || true
+        git rm sub_trojan* 2>/dev/null || true
+        git rm sub_ss* 2>/dev/null || true
+        git rm sub_hy2* 2>/dev/null || true
         
         # ၅။ အသစ်ထွက်လာသော ဖိုင်များကို ပြန်ထည့်ပါသည်
-        git add sub_part* 2>/dev/null || true
+        git add sub_vless* 2>/dev/null || true
+        git add sub_trojan* 2>/dev/null || true
+        git add sub_ss* 2>/dev/null || true
+        git add sub_hy2* 2>/dev/null || true
         git add metadata.json 2>/dev/null || true
         
         # ၆။ အမှန်တကယ် ပြောင်းလဲမှုရှိမှသာ Commit လုပ်ပြီး Push လုပ်ပါသည်
         if ! git diff --quiet --staged; then
-          git commit -m "Update proxy nodes and metadata [skip ci]"
+          git commit -m "Update proxy nodes, split protocols and metadata [skip ci]"
           git push origin main
         else
           echo "No changes to commit."

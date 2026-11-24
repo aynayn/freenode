@@ -60,8 +60,8 @@ jobs:
         sources = [
             base_dom + 'MatinGhanbari/v2ray-configs/blob/main/subscriptions/filtered/subs/vless.txt',
             base_dom + 'MatinGhanbari/v2ray-configs/blob/main/subscriptions/filtered/subs/trojan.txt',          
-            base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/vless_configs.txt',
-            base_dom + 'ebrasha/free-v2ray-public-list/refs/heads/main/trojan_configs.txt',
+            base_dom + '0xRadikal/Free-v2ray-Configs/refs/heads/main/protocols/vless.txt',
+            base_dom + '0xRadikal/Free-v2ray-Configs/refs/heads/main/protocols/trojan.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/ss.txt', # Shadowsocks

@@ -58,8 +58,8 @@ jobs:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
         sources = [
-            base_dom + 'MatinGhanbari/v2ray-configs/blob/main/subscriptions/filtered/subs/vless.txt',
-            base_dom + 'MatinGhanbari/v2ray-configs/blob/main/subscriptions/filtered/subs/trojan.txt',          
+            base_dom + 'MatinGhanbari/v2ray-configs/refs/heads/main/subscriptions/filtered/subs/vless.txt',
+            base_dom + 'MatinGhanbari/v2ray-configs/refs/heads/main/subscriptions/filtered/subs/trojan.txt',          
             base_dom + '0xRadikal/Free-v2ray-Configs/refs/heads/main/protocols/vless.txt',
             base_dom + '0xRadikal/Free-v2ray-Configs/refs/heads/main/protocols/trojan.txt',
             base_dom + 'barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt',
@@ -71,6 +71,7 @@ jobs:
             base_dom + 'SoliSpirit/v2ray-configs/refs/heads/main/Protocols/vless.txt',
             base_dom + 'SoliSpirit/v2ray-configs/refs/heads/main/Protocols/trojan.txt'
         ]
+        
 
         # ပရိုတိုကောအလိုက် ခွဲခြားသိမ်းဆည်းမည့် Dictionary
         protocols = {
